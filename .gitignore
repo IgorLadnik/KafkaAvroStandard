@@ -1,0 +1,9 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/KafkaHelperLib/obj/Debug/netstandard2.1
+/.vs/KafkaAvroStandard/v16
+/HttpClientLib
+/KafkaApp
+/KafkaHelperLib/obj

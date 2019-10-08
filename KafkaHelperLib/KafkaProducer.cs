@@ -23,8 +23,9 @@ namespace KafkaHelperLib
         private string _topic;
         private long _isSending = 0;
 
+        private Action<string> _errorHandler;
+
         public RecordConfig GenericRecordConfig { get; }
-        public string Error { get; private set; }
 
         #endregion // Vars
 
@@ -36,13 +37,15 @@ namespace KafkaHelperLib
             if (errorHandler == null)
                 throw new Exception("Empty handler");
 
+            _errorHandler = errorHandler;
+
             //1 var schemaRegistry = new CachedSchemaRegistryClient(new SchemaRegistryConfig
             //{
             //    SchemaRegistryUrl = schemaRegistryUrl,
             //    SchemaRegistryRequestTimeoutMs = 5000,
             //});
             //var schemaRegistry = new SchemaRegistryClient(new Schema(recordConfig.Subject, recordConfig.Version, recordConfig.Id, recordConfig.SchemaString)); //1
-            
+
             GenericRecordConfig = new RecordConfig((string)config[KafkaPropNames.SchemaRegistryUrl]);
             var schema = new Schema(GenericRecordConfig.Subject, GenericRecordConfig.Version, GenericRecordConfig.Id, GenericRecordConfig.SchemaString);
             var schemaRegistry = new SchemaRegistryClient(schema);
@@ -120,8 +123,7 @@ namespace KafkaHelperLib
                     }
                     catch (Exception e)
                     {
-                        //Console.WriteLine($"Send failed: {e}");
-                        Error = e.Message;
+                        _errorHandler(e.Message);
                         break;
                     }
                 }
