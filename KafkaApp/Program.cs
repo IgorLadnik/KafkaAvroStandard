@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 using Avro.Generic;
-using Confluent.SchemaRegistry;
 using HttpClientLib;
 using KafkaHelperLib;
 using Newtonsoft.Json.Linq;
@@ -61,7 +60,7 @@ namespace KafkaApp
 
                     #region Create GenericRecord Object
 
-                    var gr = new GenericRecord(kafkaProducer.GenericRecordConfig.RecordSchema);
+                    var gr = new GenericRecord(kafkaProducer.RecordSchema);
                     gr.Add("SEQUENCE", count);
                     gr.Add("ID", count);
                     gr.Add("CategoryID", count);

@@ -2,11 +2,11 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Confluent.Kafka;
 using System.Collections.Concurrent;
+using Avro;
 using Avro.Generic;
+using Confluent.Kafka;
 using Confluent.SchemaRegistry.Serdes;
-using Confluent.SchemaRegistry;
 
 namespace KafkaHelperLib
 {
@@ -16,8 +16,7 @@ namespace KafkaHelperLib
 
         private ConcurrentQueue<KeyValuePair<string, GenericRecord>> _cquePair = new ConcurrentQueue<KeyValuePair<string, GenericRecord>>();
 
-        private AvroSerializer<GenericRecord> _avroSerializer;
-        private IProducer<string, byte[]> _producer;
+        private IProducer<string, GenericRecord> _producer;
         private Task _task;
         private bool _isClosing = false;
         private string _topic;
@@ -25,12 +24,12 @@ namespace KafkaHelperLib
 
         private Action<string> _errorHandler;
 
-        public RecordConfig GenericRecordConfig { get; }
+        public RecordSchema RecordSchema { get; }
 
         #endregion // Vars
 
         #region Ctor
-                    
+
         public KafkaProducer(Dictionary<string, object> config,
                              Action<string> errorHandler)
         {
@@ -39,22 +38,13 @@ namespace KafkaHelperLib
 
             _errorHandler = errorHandler;
 
-            //1 var schemaRegistry = new CachedSchemaRegistryClient(new SchemaRegistryConfig
-            //{
-            //    SchemaRegistryUrl = schemaRegistryUrl,
-            //    SchemaRegistryRequestTimeoutMs = 5000,
-            //});
-            //var schemaRegistry = new SchemaRegistryClient(new Schema(recordConfig.Subject, recordConfig.Version, recordConfig.Id, recordConfig.SchemaString)); //1
-
-            GenericRecordConfig = new RecordConfig((string)config[KafkaPropNames.SchemaRegistryUrl]);
-            var schema = new Schema(GenericRecordConfig.Subject, GenericRecordConfig.Version, GenericRecordConfig.Id, GenericRecordConfig.SchemaString);
-            var schemaRegistry = new SchemaRegistryClient(schema);
-            _avroSerializer = new AvroSerializer<GenericRecord>(schemaRegistry);
+            var genericRecordConfig = new RecordConfig((string)config[KafkaPropNames.SchemaRegistryUrl]);
+            RecordSchema = genericRecordConfig.RecordSchema;
 
             _producer =
-                new ProducerBuilder<string, byte[]>(new ProducerConfig { BootstrapServers = (string)config[KafkaPropNames.BootstrapServers] })
+                new ProducerBuilder<string, GenericRecord>(new ProducerConfig { BootstrapServers = (string)config[KafkaPropNames.BootstrapServers] })
                     .SetKeySerializer(Serializers.Utf8)
-                    .SetValueSerializer(Serializers.ByteArray/*new AvroSerializer<T>(schemaRegistry)*/)
+                    .SetValueSerializer(new AvroSerializer<GenericRecord>(genericRecordConfig.GetSchemaRegistryClient()))
                     .Build();
 
             _topic = (string)config[KafkaPropNames.Topic];
@@ -63,9 +53,6 @@ namespace KafkaHelperLib
         #endregion // Ctor
 
         #region Serialize
-
-        public async Task<byte[]> SerializeAsync(GenericRecord genericRecord, string topic) =>
-            await _avroSerializer.SerializeAsync(genericRecord, new SerializationContext(MessageComponentType.Value, topic));
 
         #endregion // Serialize
 
@@ -107,7 +94,7 @@ namespace KafkaHelperLib
 
             _task = Task.Run(async () =>
             {
-                DeliveryResult<string, byte[]> dr = null;
+                DeliveryResult<string, GenericRecord> dr = null;
 
                 Interlocked.Increment(ref _isSending);
 
@@ -115,7 +102,7 @@ namespace KafkaHelperLib
                 {
                     try
                     {
-                        dr = await _producer.ProduceAsync(_topic, new Message<string, byte[]> { Key = pair.Key, Value = await SerializeAsync(pair.Value, _topic) });
+                        dr = await _producer.ProduceAsync(_topic, new Message<string, GenericRecord> { Key = pair.Key, Value = pair.Value });
                         //.ContinueWith(task => task.IsFaulted
                         //         ? $"error producing message: {task.Exception.Message}"
                         //         : $"produced to: {task.Result.TopicPartitionOffset}")

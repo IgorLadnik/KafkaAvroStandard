@@ -1,11 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading;
-using Confluent.Kafka;
-using Avro.Generic;
-using Confluent.SchemaRegistry.Serdes;
-using Confluent.SchemaRegistry;
 using System.Threading.Tasks;
+using Avro;
+using Avro.Generic;
+using Confluent.Kafka;
+using Confluent.Kafka.SyncOverAsync;
+using Confluent.SchemaRegistry.Serdes;
 
 namespace KafkaHelperLib
 {
@@ -13,15 +14,15 @@ namespace KafkaHelperLib
     {
         #region Vars
 
-        private IConsumer<string, byte[]> _consumer;
+        private IConsumer<string, GenericRecord> _consumer;
         private CancellationTokenSource _cts;
-        private AvroDeserializer<GenericRecord> _avroDeserializer;
         private Action<string, GenericRecord, DateTime> _consumeResultHandler;
         private Action<string> _errorHandler;
         private string _topic;
         private Task _taskConsumer;
 
         public RecordConfig GenericRecordConfig { get; }
+        public RecordSchema RecordSchema { get; }
 
         #endregion // Vars
 
@@ -39,13 +40,10 @@ namespace KafkaHelperLib
 
             _cts = new CancellationTokenSource();
 
-            GenericRecordConfig = new RecordConfig((string)config[KafkaPropNames.SchemaRegistryUrl]);
-            var schema = new Schema(GenericRecordConfig.Subject, GenericRecordConfig.Version, GenericRecordConfig.Id, GenericRecordConfig.SchemaString);
-            //1 var schemaRegistry = new CachedSchemaRegistryClient(new SchemaRegistryConfig { SchemaRegistryUrl = schemaRegistryUrl });
-            var schemaRegistry = new SchemaRegistryClient(schema);
-            _avroDeserializer = new AvroDeserializer<GenericRecord>(schemaRegistry);
+            var genericRecordConfig = new RecordConfig((string)config[KafkaPropNames.SchemaRegistryUrl]);
+            RecordSchema = genericRecordConfig.RecordSchema;
 
-            _consumer = new ConsumerBuilder<string, byte[]>(
+            _consumer = new ConsumerBuilder<string, GenericRecord>(
                     new ConsumerConfig
                     {
                         BootstrapServers = (string)config[KafkaPropNames.BootstrapServers],
@@ -53,7 +51,7 @@ namespace KafkaHelperLib
                         AutoOffsetReset = AutoOffsetReset.Earliest
                     })
                     .SetKeyDeserializer(Deserializers.Utf8)
-                    .SetValueDeserializer(Deserializers.ByteArray/*new AvroDeserializer<T>(schemaRegistry).AsSyncOverAsync()*/)
+                    .SetValueDeserializer(new AvroDeserializer<GenericRecord>(genericRecordConfig.GetSchemaRegistryClient()).AsSyncOverAsync())
                     .SetErrorHandler((_, e) => errorHandler(e.Reason))
                     .Build();
 
@@ -65,9 +63,6 @@ namespace KafkaHelperLib
         #endregion // Ctor
 
         #region Deserialize
-
-        public async Task<GenericRecord> DeserializeAsync(byte[] bts, string topic) =>
-            await _avroDeserializer.DeserializeAsync(bts, false, new SerializationContext(MessageComponentType.Value, topic));
 
         #endregion // Deserialize
 
@@ -100,7 +95,7 @@ namespace KafkaHelperLib
                     });
                     
                     if (cr != null)
-                        _consumeResultHandler(cr.Key, await DeserializeAsync(cr.Value, _topic), cr.Timestamp.UtcDateTime);
+                        _consumeResultHandler(cr.Key, cr.Value, cr.Timestamp.UtcDateTime);
                 }
             }
             catch (Exception e)

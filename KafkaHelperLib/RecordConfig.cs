@@ -4,19 +4,24 @@ using System.Text;
 using Newtonsoft.Json.Linq;
 using Avro;
 using HttpClientLib;
+using Confluent.SchemaRegistry;
 
 namespace KafkaHelperLib
 {
     public class RecordConfig
     {
+        private string _schemaRegistryUrl;
+
         public string SchemaString { get; }
         public string Subject { get; }
         public int Version { get; }
         public int Id { get; }
-        public RecordSchema RecordSchema { get; private set; }
+        public RecordSchema RecordSchema { get; }
 
         public RecordConfig(string schemaRegistryUrl)
         {
+            _schemaRegistryUrl = schemaRegistryUrl;
+
             var dctProp = GetSchemaString(schemaRegistryUrl);
 
             SchemaString = dctProp.TryGetValue("schema", out object schemaOb) ? schemaOb.ToString() : null;
@@ -65,6 +70,27 @@ namespace KafkaHelperLib
                 Console.WriteLine(e);
                 return null;
             }
+        }
+
+        public ISchemaRegistryClient GetSchemaRegistryClient(int schemaRegistryRequestTimeoutMs = 5000)
+        {
+            ISchemaRegistryClient schemaRegistry;
+
+            try
+            {
+                schemaRegistry = new CachedSchemaRegistryClient(new SchemaRegistryConfig
+                {
+                    SchemaRegistryUrl = _schemaRegistryUrl,
+                    SchemaRegistryRequestTimeoutMs = schemaRegistryRequestTimeoutMs,
+                });
+            }
+            catch
+            {
+                var grc = new RecordConfig(_schemaRegistryUrl);
+                schemaRegistry = new SchemaRegistryClient(new Confluent.SchemaRegistry.Schema(grc.Subject, grc.Version, grc.Id, grc.SchemaString));
+            }
+
+            return schemaRegistry;
         }
     }
 }
