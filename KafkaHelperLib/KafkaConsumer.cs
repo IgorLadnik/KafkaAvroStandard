@@ -62,10 +62,6 @@ namespace KafkaHelperLib
 
         #endregion // Ctor
 
-        #region Deserialize
-
-        #endregion // Deserialize
-
         #region StartConsuming Method
 
         public KafkaConsumer StartConsuming() 

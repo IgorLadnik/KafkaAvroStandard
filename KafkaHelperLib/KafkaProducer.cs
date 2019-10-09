@@ -52,10 +52,6 @@ namespace KafkaHelperLib
 
         #endregion // Ctor
 
-        #region Serialize
-
-        #endregion // Serialize
-
         #region Send Methods 
 
         public KafkaProducer Send(string key, GenericRecord value)
