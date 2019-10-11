@@ -32,11 +32,12 @@ namespace KafkaApp
             var kafkaConsumer = new KafkaConsumer(config,
                                                   (key, value, dt) =>
                                                   {
-                                                      Console.WriteLine($"Consumed Object:\nkey = {key}");
+                                                      Console.WriteLine();
+                                                      Console.Write($"{key}  ->  ");
                                                       foreach (var field in value.Schema.Fields)
-                                                          Console.WriteLine($"  {field.Name} = {value[field.Name]}");
+                                                          Console.Write($"{field.Name} = {value[field.Name]}  ");
                                                   },
-                                                  e => Console.WriteLine(e))
+                                                  s => Console.WriteLine(s))
                     .StartConsuming();
 
             #endregion // Kafka Consumer
@@ -44,16 +45,17 @@ namespace KafkaApp
             #region Create Kafka Producer 
 
             var kafkaProducer = new KafkaProducer(config,
-                                                  e => Console.WriteLine(e));
+                                                  s => Console.WriteLine(s));
 
             #endregion // Create Kafka Producer 
 
             #region Create and Send Objects 
 
             var count = 0;
+            var startTime = new DateTime(2019, 10, 10);
+
             var timer = new Timer(_ =>
             {
-                var lstTuple = new List<Tuple<string, GenericRecord>>();
                 for (var i = 0; i < 10; i++)
                 {
                     count++;
@@ -65,14 +67,12 @@ namespace KafkaApp
                     gr.Add("ID", count);
                     gr.Add("CategoryID", count);
                     gr.Add("YouTubeCategoryTypeID", count);
-                    gr.Add("CreationTime", DateTime.Now.Ticks);
-
-                    lstTuple.Add(new Tuple<string, GenericRecord>($"{count}", gr));
-
+                    gr.Add("CreationTime", (DateTime.Now - startTime).Ticks / 10_000); // ms
+                    
                     #endregion // Create GenericRecord Object
-                }
 
-                kafkaProducer.Send(lstTuple);
+                    kafkaProducer.SendAsync($"{count}", gr).Wait();
+                }
             },
             null, 0, 5000);
 

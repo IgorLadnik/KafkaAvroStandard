@@ -10,14 +10,14 @@ using Confluent.SchemaRegistry.Serdes;
 
 namespace KafkaHelperLib
 {
-    public class KafkaConsumer
+    public class KafkaConsumer : IDisposable
     {
         #region Vars
 
         private IConsumer<string, GenericRecord> _consumer;
         private CancellationTokenSource _cts;
         private Action<string, GenericRecord, DateTime> _consumeResultHandler;
-        private Action<string> _errorHandler;
+        private Action<string> _logger;
         private string _topic;
         private Task _taskConsumer;
 
@@ -30,13 +30,13 @@ namespace KafkaHelperLib
 
         public KafkaConsumer(Dictionary<string, object> config,
                              Action<string, dynamic, DateTime> consumeResultHandler,
-                             Action<string> errorHandler)
+                             Action<string> logger)
         {
-            if (consumeResultHandler == null || errorHandler == null)
+            if (consumeResultHandler == null || logger == null)
                 throw new Exception("Empty handler");
 
             _consumeResultHandler = consumeResultHandler;
-            _errorHandler = errorHandler;
+            _logger = logger;
 
             _cts = new CancellationTokenSource();
 
@@ -52,7 +52,7 @@ namespace KafkaHelperLib
                     })
                     .SetKeyDeserializer(Deserializers.Utf8)
                     .SetValueDeserializer(new AvroDeserializer<GenericRecord>(genericRecordConfig.GetSchemaRegistryClient()).AsSyncOverAsync())
-                    .SetErrorHandler((_, e) => errorHandler(e.Reason))
+                    .SetErrorHandler((_, e) => logger(e.Reason))
                     .Build();
 
             _topic = (string)config[KafkaPropNames.Topic];
@@ -76,7 +76,7 @@ namespace KafkaHelperLib
             {
                 while (!_cts.IsCancellationRequested)
                 {
-                    var cr = await Task<ConsumeResult<string, byte[]>>.Run(() =>
+                    var cr = await Task<ConsumeResult<string, GenericRecord>>.Run(() =>
                     {
                         try
                         {
@@ -84,7 +84,7 @@ namespace KafkaHelperLib
                         }
                         catch (Exception e)
                         {
-                            _errorHandler(e.Message);
+                            _logger(e.Message);
                         }
 
                         return null;
@@ -96,7 +96,7 @@ namespace KafkaHelperLib
             }
             catch (Exception e)
             {
-                _errorHandler(e.Message);
+                _logger(e.Message);
             }
             finally
             {
@@ -111,6 +111,7 @@ namespace KafkaHelperLib
         public void Dispose()
         {
             _cts?.Cancel();
+            _logger("\nConsumer was stopped.");
             _taskConsumer?.Wait();
         }
 

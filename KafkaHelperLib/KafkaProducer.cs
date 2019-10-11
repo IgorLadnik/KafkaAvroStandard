@@ -10,19 +10,16 @@ using Confluent.SchemaRegistry.Serdes;
 
 namespace KafkaHelperLib
 {
-    public class KafkaProducer
+    public class KafkaProducer : IDisposable
     {
         #region Vars
 
-        private ConcurrentQueue<KeyValuePair<string, GenericRecord>> _cquePair = new ConcurrentQueue<KeyValuePair<string, GenericRecord>>();
+        private Queue<KeyValuePair<string, GenericRecord>> _quePair = new Queue<KeyValuePair<string, GenericRecord>>();
 
         private IProducer<string, GenericRecord> _producer;
-        private Task _task;
-        private bool _isClosing = false;
         private string _topic;
-        private long _isSending = 0;
 
-        private Action<string> _errorHandler;
+        private Action<string> _logger;
 
         public RecordSchema RecordSchema { get; }
 
@@ -31,12 +28,12 @@ namespace KafkaHelperLib
         #region Ctor
 
         public KafkaProducer(Dictionary<string, object> config,
-                             Action<string> errorHandler)
+                             Action<string> logger)
         {
-            if (errorHandler == null)
+            if (logger == null)
                 throw new Exception("Empty handler");
 
-            _errorHandler = errorHandler;
+            _logger = logger;
 
             var genericRecordConfig = new RecordConfig((string)config[KafkaPropNames.SchemaRegistryUrl]);
             RecordSchema = genericRecordConfig.RecordSchema;
@@ -52,83 +49,28 @@ namespace KafkaHelperLib
 
         #endregion // Ctor
 
-        #region Send Methods 
+        #region Send 
 
-        public KafkaProducer Send(string key, GenericRecord value)
+        public async Task SendAsync(string key, GenericRecord value)
         {
-            if (string.IsNullOrEmpty(key) || value == null)
-                return this;
-
-            return Send(new KeyValuePair<string, GenericRecord>(key, value));
+            await _producer.ProduceAsync(_topic, new Message<string, GenericRecord> 
+                                    { Key = key, Value = value })
+                           .ContinueWith(task =>
+                            {
+                                if (task.IsFaulted)
+                                    _logger(task.Exception.Message);
+                            });
         }
 
-        public KafkaProducer Send(List<Tuple<string, GenericRecord>> lst) => Send(lst?.ToArray());
-
-        public KafkaProducer Send(params Tuple<string, GenericRecord>[] arr)
-        {
-            if (arr == null || arr.Length == 0)
-                return this;
-
-            var lst = new List<KeyValuePair<string, GenericRecord>>();
-            foreach (var tuple in arr)
-                lst.Add(new KeyValuePair<string, GenericRecord>(tuple.Item1, tuple.Item2));
-
-            return Send(lst.ToArray());
-        }
-
-        public KafkaProducer Send(params KeyValuePair<string, GenericRecord>[] arr)
-        {
-            if (arr == null || arr.Length == 0)
-                return this;
-
-            if (!_isClosing)
-                foreach (var pair in arr)
-                    _cquePair.Enqueue(new KeyValuePair<string, GenericRecord>(pair.Key, pair.Value));
-
-            if (Interlocked.Read(ref _isSending) == 1)
-                return this;
-
-            _task = Task.Run(async () =>
-            {
-                DeliveryResult<string, GenericRecord> dr = null;
-
-                Interlocked.Increment(ref _isSending);
-
-                while (_cquePair.TryDequeue(out var pair))
-                {
-                    try
-                    {
-                        dr = await _producer.ProduceAsync(_topic, new Message<string, GenericRecord> { Key = pair.Key, Value = pair.Value });
-                        //.ContinueWith(task => task.IsFaulted
-                        //         ? $"error producing message: {task.Exception.Message}"
-                        //         : $"produced to: {task.Result.TopicPartitionOffset}")
-                        //.Wait();
-                    }
-                    catch (Exception e)
-                    {
-                        _errorHandler(e.Message);
-                        break;
-                    }
-                }
-
-                Interlocked.Decrement(ref _isSending);
-            });
-
-            return this;
-        }
-
-        #endregion // Send Methods
+        #endregion // Send
 
         #region Dispose 
 
         public void Dispose()
         {
-            _isClosing = true;
-            _cquePair = null;
-
-            _task?.Wait();
-
+            _quePair = null;
             _producer?.Dispose();
+            _logger("\nProducer was stopped.");
         }
 
         #endregion // Dispose 
