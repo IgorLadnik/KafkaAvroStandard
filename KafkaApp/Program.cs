@@ -18,9 +18,10 @@ namespace KafkaApp
             var config = new Dictionary<string, object>
             {
                 { KafkaPropNames.BootstrapServers, "localhost:9092" },
-                { KafkaPropNames.SchemaRegistryUrl, @"..\..\..\..\wwwroot\schema.json" /*http://localhost:9999/schema.json*/},
-                { KafkaPropNames.Topic, "quick-start" },
-                { KafkaPropNames.GroupId, "consumer-group" },
+                //1 { KafkaPropNames.SchemaRegistryUrl, http://localhost:9999/schema.json },
+                { KafkaPropNames.SchemaRegistryUrl, @"..\..\..\..\wwwroot\schema.json" }, //1
+                { KafkaPropNames.Topic, "aa-topic" },
+                { KafkaPropNames.GroupId, "aa-group" },
                 { KafkaPropNames.Partition, 0 },
                 { KafkaPropNames.Offset, 0 },
             };
@@ -30,13 +31,15 @@ namespace KafkaApp
             #region Kafka Consumer
 
             var kafkaConsumer = new KafkaConsumer(config,
-                                                  (key, value, dt) =>
+                                                  // Callback to process consumed (key -> value) item
+                                                  (key, value, utcTimestamp) =>
                                                   {
-                                                      Console.WriteLine();
-                                                      Console.Write($"{key}  ->  ");
+                                                      Console.Write($"C#     {key}  ->  ");
                                                       foreach (var field in value.Schema.Fields)
-                                                          Console.Write($"{field.Name} = {value[field.Name]}  ");
+                                                          Console.Write($"{field.Name} = {value[field.Name]}   ");
+                                                      Console.WriteLine($"   {utcTimestamp}");
                                                   },
+                                                  // Callback to process log message
                                                   s => Console.WriteLine(s))
                     .StartConsuming();
 
@@ -45,6 +48,7 @@ namespace KafkaApp
             #region Create Kafka Producer 
 
             var kafkaProducer = new KafkaProducer(config,
+                                                  // Callback to process log message
                                                   s => Console.WriteLine(s));
 
             #endregion // Create Kafka Producer 
@@ -52,8 +56,8 @@ namespace KafkaApp
             #region Create and Send Objects 
 
             var count = 0;
-            var startTime = new DateTime(2019, 10, 10);
-
+            var rnd = new Random(15);
+            
             var timer = new Timer(_ =>
             {
                 for (var i = 0; i < 10; i++)
@@ -63,12 +67,12 @@ namespace KafkaApp
                     #region Create GenericRecord Object
 
                     var gr = new GenericRecord(kafkaProducer.RecordSchema);
-                    gr.Add("SEQUENCE", count);
-                    gr.Add("ID", count);
-                    gr.Add("CategoryID", count);
-                    gr.Add("YouTubeCategoryTypeID", count);
-                    gr.Add("CreationTime", (DateTime.Now - startTime).Ticks / 10_000); // ms
-                    
+                    gr.Add("Id", count);
+                    gr.Add("Name", $"{config[KafkaPropNames.GroupId]}-{count}");
+                    gr.Add("BatchId", (count / 10) + 1);
+                    gr.Add("TextData", "Some text data");
+                    gr.Add("NumericData", (long)rnd.Next(0, 100_000));
+                   
                     #endregion // Create GenericRecord Object
 
                     kafkaProducer.SendAsync($"{count}", gr).Wait();
