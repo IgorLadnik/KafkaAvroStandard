@@ -15,11 +15,15 @@ namespace KafkaApp
         {
             #region Config
 
+            const bool isFromLocalFile = true; //1
+
+            const string schemaFileName = "schema.json";
+            var urlSchemaPrefix = isFromLocalFile ? string.Empty : "http://localhost:9999/";
+            
             var config = new Dictionary<string, object>
             {
                 { KafkaPropNames.BootstrapServers, "localhost:9092" },
-                //1 { KafkaPropNames.SchemaRegistryUrl, http://localhost:9999/schema.json },
-                { KafkaPropNames.SchemaRegistryUrl, @"..\..\..\..\wwwroot\schema.json" }, //1
+                { KafkaPropNames.SchemaRegistryUrl, $"{urlSchemaPrefix}{schemaFileName}" },
                 { KafkaPropNames.Topic, "aa-topic" },
                 { KafkaPropNames.GroupId, "aa-group" },
                 { KafkaPropNames.Partition, 0 },

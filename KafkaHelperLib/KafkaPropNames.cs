@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace KafkaHelperLib
+﻿namespace KafkaHelperLib
 {
     static public class KafkaPropNames
     {

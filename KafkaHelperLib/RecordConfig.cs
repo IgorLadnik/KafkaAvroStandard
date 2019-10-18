@@ -72,25 +72,15 @@ namespace KafkaHelperLib
             }
         }
 
-        public ISchemaRegistryClient GetSchemaRegistryClient(int schemaRegistryRequestTimeoutMs = 5000)
-        {
-            ISchemaRegistryClient schemaRegistry;
-
-            try
-            {
-                schemaRegistry = new CachedSchemaRegistryClient(new SchemaRegistryConfig
-                {
-                    SchemaRegistryUrl = _schemaRegistryUrl,
-                    SchemaRegistryRequestTimeoutMs = schemaRegistryRequestTimeoutMs,
-                });
-            }
-            catch
-            {
-                var grc = new RecordConfig(_schemaRegistryUrl);
-                schemaRegistry = new SchemaRegistryClient(new Confluent.SchemaRegistry.Schema(grc.Subject, grc.Version, grc.Id, grc.SchemaString));
-            }
-
-            return schemaRegistry;
-        }
+        public ISchemaRegistryClient GetSchemaRegistryClient(int schemaRegistryRequestTimeoutMs = 5000) =>
+            //2
+            //new CachedSchemaRegistryClient(new SchemaRegistryConfig
+            //{
+            //    SchemaRegistryUrl = _schemaRegistryUrl,
+            //    SchemaRegistryRequestTimeoutMs = schemaRegistryRequestTimeoutMs,
+            //});
+            
+            //2         
+            new SchemaRegistryClient(new Confluent.SchemaRegistry.Schema(Subject, Version, Id, SchemaString));
     }
 }
