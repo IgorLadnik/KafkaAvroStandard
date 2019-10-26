@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.IO;
 using Newtonsoft.Json.Linq;
 using Avro;
 using HttpClientLib;
@@ -44,7 +45,7 @@ namespace KafkaHelperLib
             {
                 try
                 {
-                    str = System.IO.File.ReadAllText(schemaRegistryUrl);
+                    str = File.ReadAllText(schemaRegistryUrl);
                 }
                 catch
                 {

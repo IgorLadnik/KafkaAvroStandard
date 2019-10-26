@@ -5,7 +5,7 @@ using Confluent.SchemaRegistry;
 
 namespace KafkaHelperLib
 {
-    public class SchemaRegistryClient : ISchemaRegistryClient
+    internal class SchemaRegistryClient : ISchemaRegistryClient
     {
         private Schema _schema;
 

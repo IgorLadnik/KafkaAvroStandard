@@ -13,9 +13,7 @@ namespace HttpClientLib
         private readonly bool _isHttpS = false;
         private readonly string _strUser = string.Empty;
         private readonly string _strPassword = string.Empty;
-        private string strContentType = string.Empty;   // shows type of returned byte array
-        private HttpWebRequest request = null;  // for async. mode
-
+        
         #endregion // Vars
 
         #region Ctor 	
@@ -57,12 +55,7 @@ namespace HttpClientLib
         }
 
         // Converts string to byte[] and calls another Post() method. 
-        public byte[] Post(string strUrl, string strPostData)
-        {
-            //var btPostData = Encoding.GetEncoding(1252).GetBytes(strPostData);
-            var btPostData = Encoding.UTF8.GetBytes(strPostData);
-            return Post(strUrl, btPostData);
-        }
+        public byte[] Post(string strUrl, string strPostData) => Post(strUrl, Encoding.UTF8.GetBytes(strPostData));
 
         // Actually POSTs byte[] btPostData to strUrl. 
         public byte[] Post(string strUrl, byte[] btPostData)
@@ -90,7 +83,6 @@ namespace HttpClientLib
                     break;
             }
 
-            strContentType = response.ContentType;
             response.Close();
 
             return outStream.ToArray();
@@ -109,18 +101,15 @@ namespace HttpClientLib
             request.Timeout = 1000 * timeoutInSec;
 
             // Response
-            var response = (HttpWebResponse)request.GetResponse();
-            return GetBytesResponse(response);
+            return GetBytesResponse((HttpWebResponse)request.GetResponse());
         }
 
         // Test whether server:port connected
-        static public bool IsConnected(string server, int port, out string strErrMessage)
-        {
-            //			IPHostEntry heserver = Dns.Resolve(server);
-            //			IPAddress ipAddr = heserver.AddressList[0];
-            return HttpClient.IsConnected(IPAddress.Parse(server), port, out strErrMessage);
-        }
-
+        static public bool IsConnected(string server, int port, out string strErrMessage) =>
+            // IPHostEntry heserver = Dns.Resolve(server);
+            // IPAddress ipAddr = heserver.AddressList[0];
+            HttpClient.IsConnected(IPAddress.Parse(server), port, out strErrMessage);
+        
         // Test whether ipAddr:port connected
         static public bool IsConnected(IPAddress ipAddr, int port, out string strErrMessage)
         {
@@ -151,9 +140,8 @@ namespace HttpClientLib
             return Post(strUrl, strPostData, onPostEnd);
         }
 
-        // Interface method to POST byte[] btData to strUrl.  Calls appropriate Post() method.
-        public IAsyncResult HttpConnectEx(string strServer, string strCommand, int port, byte[] btData,
-            AsyncCallback onPostEnd)
+        // Interface method to POST byte[] btData to strUrl. Calls appropriate Post() method.
+        public IAsyncResult HttpConnectEx(string strServer, string strCommand, int port, byte[] btData, AsyncCallback onPostEnd)
         {
             var strUrl = ConstructUrl(strServer, strCommand, port);
             var btActualData = PreprocessData(btData);
@@ -161,21 +149,13 @@ namespace HttpClientLib
         }
 
         // Convert string to byte[] and call another Post() method. 
-        public IAsyncResult Post(string strUrl, string strPostData, AsyncCallback onPostEnd)
-        {
-            //var btPostData = Encoding.GetEncoding(1252).GetBytes(strPostData);
-            var btPostData = Encoding.UTF8.GetBytes(strPostData);
-            return Post(strUrl, btPostData, onPostEnd);
-        }
-
+        public IAsyncResult Post(string strUrl, string strPostData, AsyncCallback onPostEnd) => 
+            Post(strUrl, Encoding.UTF8.GetBytes(strPostData), onPostEnd);
+        
         // Actually POST byte[] btPostData to strUrl asynchronously. 
-        public IAsyncResult Post(string strUrl, byte[] btPostData, AsyncCallback onPostEnd)
-        {
-            var request = PreparePostRequest(strUrl, btPostData);
-            this.request = request;
-            return request.BeginGetResponse(onPostEnd, this);
-        }
-
+        public IAsyncResult Post(string strUrl, byte[] btPostData, AsyncCallback onPostEnd) =>
+            PreparePostRequest(strUrl, btPostData).BeginGetResponse(onPostEnd, this);
+        
         #endregion // Public Methods, for Asynchronous Mode
 
         #endregion // Public Methods
@@ -201,21 +181,11 @@ namespace HttpClientLib
                 request.ContentLength = btPostData.Length;
                 request.ContentType = "application/x-www-form-urlencoded";
                 request.GetRequestStream().Write(btPostData, 0, btPostData.Length);
-                request.GetRequestStream().Close(); //??
+                request.GetRequestStream().Close();
             }
             else
                 request.ContentLength = 0;
-            //??
-            //			if (null != btPostData && btPostData.Length > 0)
-            //			{
-            //				request.ContentLength = btPostData.Length;
-            //				Stream smPostData = request.GetRequestStream();
-            //				smPostData.Write(btPostData, 0, btPostData.Length);
-            //				smPostData.Close();
-            //			}
-            //			else
-            //				request.ContentLength = 0;
-
+            
             return request;
         }
 
@@ -257,7 +227,7 @@ namespace HttpClientLib
             }
             else
                 // Binary result: skip leading 0
-                if ((byte)0 == btOut[0])
+                if (btOut[0] == 0)
                 return SkipLeadingBytes(btOut, 1);
 
             return btOut;
