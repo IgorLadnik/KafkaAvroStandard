@@ -12,21 +12,29 @@ namespace KafkaHelperLib
 {
     public class KafkaConsumer : IDisposable
     {
+        #region ReadOnly 
+
+        private readonly TimeSpan MaxLiveTimeSpan = TimeSpan.FromMinutes(3);
+
+        #endregion // ReadOnly
+
         #region Vars
 
-        private IConsumer<string, GenericRecord> _consumer;
         private CancellationTokenSource _cts;
         private Action<string, GenericRecord, DateTime> _consumeResultHandler;
         private Action<string> _logger;
         private string _topic;
         private Task _taskConsumer;
+        private Dictionary<string, object> _config;
+        private RecordConfig _genericRecordConfig;
+        private DateTime _creationTime;
 
         public RecordConfig GenericRecordConfig { get; }
         public RecordSchema RecordSchema { get; }
 
         #endregion // Vars
 
-        #region Ctor
+        #region Ctor & Consumer Creation
 
         public KafkaConsumer(Dictionary<string, object> config,
                              Action<string, dynamic, DateTime> consumeResultHandler,
@@ -37,76 +45,87 @@ namespace KafkaHelperLib
 
             _consumeResultHandler = consumeResultHandler;
             _logger = logger;
+            _config = config;
 
             _cts = new CancellationTokenSource();
 
-            var genericRecordConfig = new RecordConfig((string)config[KafkaPropNames.SchemaRegistryUrl]);
-            RecordSchema = genericRecordConfig.RecordSchema;
-
-            _consumer = new ConsumerBuilder<string, GenericRecord>(
-                    new ConsumerConfig
-                    {
-                        BootstrapServers = (string)config[KafkaPropNames.BootstrapServers],
-                        GroupId = (string)config[KafkaPropNames.GroupId],
-                        AutoOffsetReset = AutoOffsetReset.Earliest
-                    })
-                    .SetKeyDeserializer(Deserializers.Utf8)
-                    .SetValueDeserializer(new AvroDeserializer<GenericRecord>(genericRecordConfig.GetSchemaRegistryClient()).AsSyncOverAsync())
-                    .SetErrorHandler((_, e) => logger(e.Reason))
-                    .Build();
+            _genericRecordConfig = new RecordConfig((string)config[KafkaPropNames.SchemaRegistryUrl]);
+            RecordSchema = _genericRecordConfig.RecordSchema;
 
             _topic = (string)config[KafkaPropNames.Topic];
 
-            _consumer.Assign(new List<TopicPartitionOffset> { new TopicPartitionOffset(_topic, (int)config[KafkaPropNames.Partition], (int)config[KafkaPropNames.Offset]) });
+            _taskConsumer = StartConsumingInner();
         }
 
-        #endregion // Ctor
+        private IConsumer<string, GenericRecord> CreateConsumer()
+        {
+            var consumer = new ConsumerBuilder<string, GenericRecord>(
+                    new ConsumerConfig
+                    {
+                        BootstrapServers = (string)_config[KafkaPropNames.BootstrapServers],
+                        GroupId = (string)_config[KafkaPropNames.GroupId],
+                        AutoOffsetReset = AutoOffsetReset.Earliest
+                    })
+                    .SetKeyDeserializer(Deserializers.Utf8)
+                    .SetValueDeserializer(new AvroDeserializer<GenericRecord>(_genericRecordConfig.GetSchemaRegistryClient()).AsSyncOverAsync())
+                    .SetErrorHandler((_, e) => _logger(e.Reason))
+                    .SetStatisticsHandler((_, json) => Console.WriteLine($"Stats: {json}"))
+                    .Build();
+
+            consumer.Assign(new List<TopicPartitionOffset> { new TopicPartitionOffset(_topic, (int)_config[KafkaPropNames.Partition], (int)_config[KafkaPropNames.Offset]) });
+
+            _creationTime = DateTime.Now;
+
+            return consumer;
+        }
+
+        #endregion // Ctor & Consumer Creation
 
         #region StartConsuming Method
 
-        public KafkaConsumer StartConsuming() 
-        {
-            _taskConsumer = StartConsumingInner();
-            return this;
-        }
-
         private async Task StartConsumingInner()
         {
-            try
-            {
-                while (!_cts.IsCancellationRequested)
-                {
-                    var cr = await Task<ConsumeResult<string, GenericRecord>>.Run(() =>
-                    {
-                        try
-                        {
-                            return _consumer.Consume(_cts.Token);
-                        }
-                        catch (Exception e)
-                        {
-                            _logger(e.Message);
-                        }
+            IConsumer<string, GenericRecord> consumer = null;
 
-                        return null;
-                    });
-                    
-                    if (cr != null)
-                        _consumeResultHandler(cr.Key, cr.Value, cr.Timestamp.UtcDateTime);
+            while (!_cts.IsCancellationRequested)
+            {
+                if (consumer == null || ShouldConsumerReset)
+                {
+                    try { consumer?.Close(); } catch (Exception) { };
+                    consumer = CreateConsumer();
                 }
-            }
-            catch (Exception e)
-            {
-                _logger(e.Message);
-            }
-            finally
-            {
-                _consumer.Close();
+
+                var cr = await Task<ConsumeResult<string, GenericRecord>>.Run(() =>
+                {
+                    try
+                    {
+                        return consumer.Consume(_cts.Token);                       
+                    }
+                    catch (OperationCanceledException) 
+                    {
+                        _logger("Consumer: Operation cancelled.");
+                        consumer.Close();
+                    }
+                    catch (Exception e)
+                    {
+                        _logger(e.Message);
+                        try { consumer.Close(); } catch (Exception) { };
+                        consumer = null;
+                    }
+
+                    return null;
+                });
+                    
+                if (cr != null)
+                    _consumeResultHandler(cr.Key, cr.Value, cr.Timestamp.UtcDateTime);
             }
         }
 
         #endregion // StartConsuming Method
 
-        #region Dispose 
+        #region Reset condition & Dispose 
+
+        private bool ShouldConsumerReset => DateTime.Now - _creationTime > MaxLiveTimeSpan;
 
         public void Dispose()
         {
@@ -115,6 +134,6 @@ namespace KafkaHelperLib
             _taskConsumer?.Wait();
         }
 
-        #endregion // Dispose
+        #endregion // Reset condition & Dispose
     }
 }

@@ -19,7 +19,7 @@ namespace KafkaApp
 
             const string schemaFileName = "schema.json";
             var urlSchemaPrefix = isFromLocalFile ? string.Empty : "http://localhost:9999/";
-            
+
             var config = new Dictionary<string, object>
             {
                 { KafkaPropNames.BootstrapServers, "localhost:9092" },
@@ -29,7 +29,7 @@ namespace KafkaApp
                 { KafkaPropNames.Partition, 0 },
                 { KafkaPropNames.Offset, 0 },
             };
-            
+
             #endregion // Config
 
             #region Kafka Consumer
@@ -44,8 +44,7 @@ namespace KafkaApp
                                                       Console.WriteLine($"   {utcTimestamp}");
                                                   },
                                                   // Callback to process log message
-                                                  s => Console.WriteLine(s))
-                    .StartConsuming();
+                                                  s => Console.WriteLine(s));                                                 
 
             #endregion // Kafka Consumer
 
