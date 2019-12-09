@@ -34,7 +34,7 @@ namespace KafkaApp
 
             #region Kafka Consumer
 
-            var kafkaConsumer = new KafkaConsumer(config,
+            using var kafkaConsumer = new KafkaConsumer(config,
                                                   // Callback to process consumed (key -> value) item
                                                   (key, value, utcTimestamp) =>
                                                   {
@@ -44,13 +44,13 @@ namespace KafkaApp
                                                       Console.WriteLine($"   {utcTimestamp}");
                                                   },
                                                   // Callback to process log message
-                                                  s => Console.WriteLine(s));                                                 
+                                                  s => Console.WriteLine(s));
 
             #endregion // Kafka Consumer
 
             #region Create Kafka Producer 
 
-            var kafkaProducer = new KafkaProducer(config,
+            using var kafkaProducer = new KafkaProducer(config,
                                                   // Callback to process log message
                                                   s => Console.WriteLine(s));
 
@@ -60,8 +60,8 @@ namespace KafkaApp
 
             var count = 0;
             var rnd = new Random(15);
-            
-            var timer = new Timer(_ =>
+
+            using var timer = new Timer(_ =>
             {
                 for (var i = 0; i < 10; i++)
                 {
@@ -87,10 +87,6 @@ namespace KafkaApp
 
             Console.WriteLine("Press any key to quit...");
             Console.ReadKey();
-
-            timer.Dispose();
-            kafkaProducer.Dispose();
-            kafkaConsumer.Dispose();
         }
 
         private static IDictionary<string, object> GetSchemaString(string schemaRegistryUrl)
