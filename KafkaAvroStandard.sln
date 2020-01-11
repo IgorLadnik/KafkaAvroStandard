@@ -3,11 +3,16 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.29318.209
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KafkaHelperLib", "KafkaHelperLib\KafkaHelperLib.csproj", "{7F579F85-4F0F-476B-BBD8-3FACDA5D2E36}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "KafkaHelperLib", "KafkaHelperLib\KafkaHelperLib.csproj", "{7F579F85-4F0F-476B-BBD8-3FACDA5D2E36}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HttpClientLib", "HttpClientLib\HttpClientLib.csproj", "{25C18223-9F81-4F13-B74C-8EE516E842E4}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HttpClientLib", "HttpClientLib\HttpClientLib.csproj", "{25C18223-9F81-4F13-B74C-8EE516E842E4}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KafkaApp", "KafkaApp\KafkaApp.csproj", "{5CD7ED95-8611-43AD-BA40-7D682FBE82E4}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "KafkaApp", "KafkaApp\KafkaApp.csproj", "{5CD7ED95-8611-43AD-BA40-7D682FBE82E4}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "wwwroot", "wwwroot", "{F3CBD19A-2B25-415A-AE9C-69B5BE6FCBFF}"
+	ProjectSection(SolutionItems) = preProject
+		wwwroot\schema.json = wwwroot\schema.json
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
