@@ -49,12 +49,15 @@ namespace KafkaHelperLib
             _topic = (string)config[KafkaPropNames.Topic];
         }
 
-        private IProducer<string, GenericRecord> CreateProducer() =>
-            new ProducerBuilder<string, GenericRecord>(new ProducerConfig { BootstrapServers = (string)_config[KafkaPropNames.BootstrapServers] })
-                        .SetKeySerializer(Serializers.Utf8)
-                        .SetValueSerializer(new AvroSerializer<GenericRecord>(_genericRecordConfig.GetSchemaRegistryClient()))
+        private IProducer<string, GenericRecord> CreateProducer()
+        {
+            var schemaRegistry = _genericRecordConfig.GetSchemaRegistryClient();
+            return new ProducerBuilder<string, GenericRecord>(new ProducerConfig { BootstrapServers = (string)_config[KafkaPropNames.BootstrapServers] })
+                        .SetKeySerializer(new AvroSerializer<string>(schemaRegistry))
+                        .SetValueSerializer(new AvroSerializer<GenericRecord>(schemaRegistry))
                         .Build();
-        
+        }
+
         #endregion // Ctor & Create producer
 
         #region Send 

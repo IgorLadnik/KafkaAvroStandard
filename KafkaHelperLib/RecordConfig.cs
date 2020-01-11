@@ -74,14 +74,10 @@ namespace KafkaHelperLib
         }
 
         public ISchemaRegistryClient GetSchemaRegistryClient(int schemaRegistryRequestTimeoutMs = 5000) =>
-            //2
-            //new CachedSchemaRegistryClient(new SchemaRegistryConfig
-            //{
-            //    SchemaRegistryUrl = _schemaRegistryUrl,
-            //    SchemaRegistryRequestTimeoutMs = schemaRegistryRequestTimeoutMs,
-            //});
-            
-            //2         
-            new SchemaRegistryClient(new Confluent.SchemaRegistry.Schema(Subject, Version, Id, SchemaString));
+            new CachedSchemaRegistryClient(new SchemaRegistryConfig
+            {
+                SchemaRegistryUrl = _schemaRegistryUrl,
+                SchemaRegistryRequestTimeoutMs = schemaRegistryRequestTimeoutMs,
+            });
     }
 }

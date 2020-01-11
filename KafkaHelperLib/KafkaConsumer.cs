@@ -59,6 +59,7 @@ namespace KafkaHelperLib
 
         private IConsumer<string, GenericRecord> CreateConsumer()
         {
+            var schemaRegistry = _genericRecordConfig.GetSchemaRegistryClient();
             var consumer = new ConsumerBuilder<string, GenericRecord>(
                     new ConsumerConfig
                     {
@@ -66,8 +67,8 @@ namespace KafkaHelperLib
                         GroupId = (string)_config[KafkaPropNames.GroupId],
                         AutoOffsetReset = AutoOffsetReset.Earliest
                     })
-                    .SetKeyDeserializer(Deserializers.Utf8)
-                    .SetValueDeserializer(new AvroDeserializer<GenericRecord>(_genericRecordConfig.GetSchemaRegistryClient()).AsSyncOverAsync())
+                    .SetKeyDeserializer(new AvroDeserializer<string>(schemaRegistry).AsSyncOverAsync())
+                    .SetValueDeserializer(new AvroDeserializer<GenericRecord>(schemaRegistry).AsSyncOverAsync())
                     .SetErrorHandler((_, e) => _logger(e.Reason))
                     .SetStatisticsHandler((_, json) => Console.WriteLine($"Stats: {json}"))
                     .Build();
