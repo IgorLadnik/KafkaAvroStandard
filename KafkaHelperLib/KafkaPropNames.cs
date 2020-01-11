@@ -9,5 +9,6 @@
         public const string Topic = "topic";
         public const string Partition = "partition";
         public const string Offset = "offset";
+        public const string SchemaRegistryRequestTimeoutMs = "schemaRegistryRequestTimeoutMs";
     }
 }

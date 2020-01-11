@@ -11,8 +11,4 @@
     <PackageReference Include="Confluent.SchemaRegistry.Serdes" Version="1.2.0" />
   </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\HttpClientLib\HttpClientLib.csproj" />
-  </ItemGroup>
-
 </Project>

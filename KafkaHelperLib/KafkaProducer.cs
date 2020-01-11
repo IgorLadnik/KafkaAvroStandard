@@ -1,9 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Net.Http;
 using System.Threading.Tasks;
 using Avro;
 using Avro.Generic;
 using Confluent.Kafka;
+using Confluent.SchemaRegistry;
 using Confluent.SchemaRegistry.Serdes;
 
 namespace KafkaHelperLib
@@ -23,10 +26,10 @@ namespace KafkaHelperLib
         private IProducer<string, GenericRecord> _producer;
         private string _topic;
         private Dictionary<string, object> _config;
-        RecordConfig _genericRecordConfig;
         private DateTime _creationTime;
         
         private Action<string> _logger;
+        private ISchemaRegistryClient _schemaRegistry;
 
         public RecordSchema RecordSchema { get; private set; }
 
@@ -34,7 +37,8 @@ namespace KafkaHelperLib
 
         #region Ctor & Create producer
 
-        public KafkaProducer(Dictionary<string, object> config,
+        public KafkaProducer(string schemaLocation,
+                             Dictionary<string, object> config,
                              Action<string> logger)
         {
             if (logger == null)
@@ -43,20 +47,22 @@ namespace KafkaHelperLib
             _logger = logger;
             _config = config;
 
-            _genericRecordConfig = new RecordConfig((string)_config[KafkaPropNames.SchemaRegistryUrl]);
-            RecordSchema = _genericRecordConfig.RecordSchema;
+            RecordSchema = (RecordSchema)RecordSchema.Parse(GetSchemaAsString(schemaLocation));
 
             _topic = (string)config[KafkaPropNames.Topic];
+
+            _schemaRegistry = new CachedSchemaRegistryClient(new SchemaRegistryConfig
+            {
+                SchemaRegistryUrl = (string)_config[KafkaPropNames.SchemaRegistryUrl],
+                SchemaRegistryRequestTimeoutMs = (int)_config[KafkaPropNames.SchemaRegistryRequestTimeoutMs],
+            });
         }
 
-        private IProducer<string, GenericRecord> CreateProducer()
-        {
-            var schemaRegistry = _genericRecordConfig.GetSchemaRegistryClient();
-            return new ProducerBuilder<string, GenericRecord>(new ProducerConfig { BootstrapServers = (string)_config[KafkaPropNames.BootstrapServers] })
-                        .SetKeySerializer(new AvroSerializer<string>(schemaRegistry))
-                        .SetValueSerializer(new AvroSerializer<GenericRecord>(schemaRegistry))
-                        .Build();
-        }
+        private IProducer<string, GenericRecord> CreateProducer() =>
+            new ProducerBuilder<string, GenericRecord>(new ProducerConfig { BootstrapServers = (string)_config[KafkaPropNames.BootstrapServers] })
+                    .SetKeySerializer(new AvroSerializer<string>(_schemaRegistry))
+                    .SetValueSerializer(new AvroSerializer<GenericRecord>(_schemaRegistry))
+                    .Build();
 
         #endregion // Ctor & Create producer
 
@@ -90,6 +96,26 @@ namespace KafkaHelperLib
         }
 
         #endregion // Dispose 
+
+        private static string GetSchemaAsString(string schemaLocation)
+        {
+            try
+            {
+                return File.ReadAllText(schemaLocation);
+            }
+            catch
+            {
+                try
+                {
+                    return new HttpClient().GetStringAsync(schemaLocation).Result;
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine($"ERROR: Schema string was not obtained from \"{schemaLocation}\". {e}");
+                    return null;
+                }
+            }
+        }
     }
 }
 

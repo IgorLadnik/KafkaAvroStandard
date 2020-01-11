@@ -1,11 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Threading;
 using Avro.Generic;
-using HttpClientLib;
 using KafkaHelperLib;
-using Newtonsoft.Json.Linq;
 
 namespace KafkaApp
 {
@@ -15,7 +12,8 @@ namespace KafkaApp
         {
             #region Config
 
-            const string schemaFileName = "schema.json";
+            const string schemaLocation = "schema.json";
+            //const string schemaLocation = "http://localhost:9999/schema.json";
             
             var config = new Dictionary<string, object>
             {
@@ -25,6 +23,7 @@ namespace KafkaApp
                 { KafkaPropNames.GroupId, "aa-group" },
                 { KafkaPropNames.Partition, 0 },
                 { KafkaPropNames.Offset, 0 },
+                { KafkaPropNames.SchemaRegistryRequestTimeoutMs, 5000 },
             };
 
             #endregion // Config
@@ -47,7 +46,7 @@ namespace KafkaApp
 
             #region Create Kafka Producer 
 
-            using var kafkaProducer = new KafkaProducer(config,
+            using var kafkaProducer = new KafkaProducer(schemaLocation, config,
                                                   // Callback to process log message
                                                   s => Console.WriteLine(s));
 
@@ -60,7 +59,7 @@ namespace KafkaApp
 
             using var timer = new Timer(_ =>
             {
-                for (var i = 0; i < 10; i++)
+                for (var i = 0; i < 1; i++)
                 {
                     count++;
 
@@ -84,27 +83,6 @@ namespace KafkaApp
 
             Console.WriteLine("Press any key to quit...");
             Console.ReadKey();
-        }
-
-        private static IDictionary<string, object> GetSchemaString(string schemaRegistryUrl)
-        {
-            try
-            {
-                var str = Encoding.Default.GetString(new HttpClient().Get(schemaRegistryUrl, 100))
-                                       .Replace(" ", string.Empty).Replace("\n", "").Replace("\r", "").Replace("\t", "").Replace("\\", "");
-
-                var jOb = JObject.Parse(str);
-                var dctProp = new Dictionary<string, object>();
-                foreach (var property in jOb.Properties())
-                    dctProp[property.Name] = property.Value;
-
-                return dctProp;
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e);
-                return null;
-            }
         }
     }
 }

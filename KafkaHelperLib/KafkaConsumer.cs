@@ -6,6 +6,7 @@ using Avro;
 using Avro.Generic;
 using Confluent.Kafka;
 using Confluent.Kafka.SyncOverAsync;
+using Confluent.SchemaRegistry;
 using Confluent.SchemaRegistry.Serdes;
 
 namespace KafkaHelperLib
@@ -26,10 +27,9 @@ namespace KafkaHelperLib
         private string _topic;
         private Task _taskConsumer;
         private Dictionary<string, object> _config;
-        private RecordConfig _genericRecordConfig;
         private DateTime _creationTime;
+        private ISchemaRegistryClient _schemaRegistry;
 
-        public RecordConfig GenericRecordConfig { get; }
         public RecordSchema RecordSchema { get; }
 
         #endregion // Vars
@@ -49,17 +49,19 @@ namespace KafkaHelperLib
 
             _cts = new CancellationTokenSource();
 
-            _genericRecordConfig = new RecordConfig((string)config[KafkaPropNames.SchemaRegistryUrl]);
-            RecordSchema = _genericRecordConfig.RecordSchema;
-
             _topic = (string)config[KafkaPropNames.Topic];
 
             _taskConsumer = StartConsumingInner();
+
+            _schemaRegistry = new CachedSchemaRegistryClient(new SchemaRegistryConfig
+            {
+                SchemaRegistryUrl = (string)_config[KafkaPropNames.SchemaRegistryUrl],
+                SchemaRegistryRequestTimeoutMs = (int)_config[KafkaPropNames.SchemaRegistryRequestTimeoutMs],
+            });
         }
 
         private IConsumer<string, GenericRecord> CreateConsumer()
-        {
-            var schemaRegistry = _genericRecordConfig.GetSchemaRegistryClient();
+        {           
             var consumer = new ConsumerBuilder<string, GenericRecord>(
                     new ConsumerConfig
                     {
@@ -67,9 +69,9 @@ namespace KafkaHelperLib
                         GroupId = (string)_config[KafkaPropNames.GroupId],
                         AutoOffsetReset = AutoOffsetReset.Earliest
                     })
-                    .SetKeyDeserializer(new AvroDeserializer<string>(schemaRegistry).AsSyncOverAsync())
-                    .SetValueDeserializer(new AvroDeserializer<GenericRecord>(schemaRegistry).AsSyncOverAsync())
-                    .SetErrorHandler((_, e) => _logger(e.Reason))
+                    .SetKeyDeserializer(new AvroDeserializer<string>(_schemaRegistry).AsSyncOverAsync())
+                    .SetValueDeserializer(new AvroDeserializer<GenericRecord>(_schemaRegistry).AsSyncOverAsync())
+                    .SetErrorHandler((_, e) => _logger($"Consumer error: {e}"))
                     .SetStatisticsHandler((_, json) => Console.WriteLine($"Stats: {json}"))
                     .Build();
 
