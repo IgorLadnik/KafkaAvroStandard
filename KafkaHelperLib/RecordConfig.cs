@@ -23,7 +23,7 @@ namespace KafkaHelperLib
         {
             _schemaRegistryUrl = schemaRegistryUrl;
 
-            var dctProp = GetSchemaString(schemaRegistryUrl);
+            var dctProp = GetSchemaProperties(schemaRegistryUrl);
 
             SchemaString = dctProp.TryGetValue("schema", out object schemaOb) ? schemaOb.ToString() : null;
             Subject = dctProp.TryGetValue("subject", out object subjectOb) ? subjectOb.ToString() : null;
@@ -33,7 +33,7 @@ namespace KafkaHelperLib
             RecordSchema = (RecordSchema)RecordSchema.Parse(SchemaString);
         }
 
-        private static IDictionary<string, object> GetSchemaString(string schemaRegistryUrl)
+        private static IDictionary<string, object> GetSchemaProperties(string schemaRegistryUrl)
         {
             string str;
 
