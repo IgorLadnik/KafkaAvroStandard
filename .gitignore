@@ -9,3 +9,4 @@
 /KafkaHelperLib/obj
 /.vs/KafkaAvroStandard/DesignTimeBuild
 /KafkaHelperLib/bin/Debug/netstandard2.1
+/.idea/.idea.KafkaAvroStandard/.idea
