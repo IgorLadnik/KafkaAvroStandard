@@ -14,13 +14,16 @@ namespace KafkaApp
 
             const string schemaLocation = "schema.json";
             //const string schemaLocation = "http://localhost:9999/schema.json";
-            
+
+            const string topic = "test1-topic";
+            const int version = 11;
+
             var config = new Dictionary<string, object>
             {
                 { KafkaPropNames.BootstrapServers, "localhost:9092" },
-                { KafkaPropNames.SchemaRegistryUrl, "http://localhost:8081" },
-                { KafkaPropNames.Topic, "aa-topic" },
-                { KafkaPropNames.GroupId, "aa-group" },
+                { KafkaPropNames.SchemaRegistryUrl, $"http://localhost:8081/subjects/{topic}/versions/{version}/schema" },
+                { KafkaPropNames.Topic, topic },
+                { KafkaPropNames.GroupId, "my-group" },
                 { KafkaPropNames.Partition, 0 },
                 { KafkaPropNames.Offset, 0 },
                 { KafkaPropNames.SchemaRegistryRequestTimeoutMs, 5000 },
