@@ -1,8 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Net.Sockets;
+using System.Net.NetworkInformation;
 using System.Threading;
 using Avro.Generic;
 using KafkaHelperLib;
+using System.Net;
 
 namespace KafkaApp
 {
@@ -18,12 +22,16 @@ namespace KafkaApp
             const string topic = "test1-topic";
             const int version = 11;
 
+            var ipAddress = Dns.GetHostEntry(Dns.GetHostName())
+                    .AddressList
+                    .First(addr => addr.AddressFamily == AddressFamily.InterNetwork);
+
             var config = new Dictionary<string, object>
             {
                 { KafkaPropNames.BootstrapServers, "localhost:9092" },
                 { KafkaPropNames.SchemaRegistryUrl, $"http://localhost:8081/subjects/{topic}/versions/{version}/schema" },
                 { KafkaPropNames.Topic, topic },
-                { KafkaPropNames.GroupId, "my-group" },
+                { KafkaPropNames.GroupId, $"{ipAddress}-my-group" },
                 { KafkaPropNames.Partition, 0 },
                 { KafkaPropNames.Offset, 0 },
                 { KafkaPropNames.SchemaRegistryRequestTimeoutMs, 5000 },
